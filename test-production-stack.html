@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Production Stack - GTM, Invoca, Meta, Taboola</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .test-result { 
+            margin: 15px 0; 
+            padding: 15px; 
+            border-radius: 5px;
+            border-left: 4px solid #ddd;
+        }
+        .success { 
+            background-color: #d4edda; 
+            border-left-color: #28a745;
+        }
+        .error { 
+            background-color: #f8d7da; 
+            border-left-color: #dc3545;
+        }
+        .warning { 
+            background-color: #fff3cd; 
+            border-left-color: #ffc107;
+        }
+        .info { 
+            background-color: #d1ecf1; 
+            border-left-color: #17a2b8;
+        }
+        .script-box {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        h1 { margin: 0; font-size: 28px; }
+        h2 { 
+            color: #495057;
+            font-size: 20px;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-success { background: #28a745; color: white; }
+        .badge-error { background: #dc3545; color: white; }
+        .badge-warning { background: #ffc107; color: #000; }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #6c757d;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .critical-issue {
+            background: #dc3545;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .accordion {
+            margin: 10px 0;
+        }
+        .accordion-header {
+            background: #e9ecef;
+            padding: 12px;
+            cursor: pointer;
+            border-radius: 5px;
+            user-select: none;
+        }
+        .accordion-header:hover {
+            background: #dee2e6;
+        }
+        .accordion-content {
+            display: none;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+        .accordion-content.active {
+            display: block;
+        }
+        code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔬 Test Stack de Producción</h1>
+        <p style="margin: 10px 0 0 0; opacity: 0.9;">GTM • Invoca • Meta Pixel • Taboola • Trustpilot</p>
+    </div>
+
+    <div class="container">
+        <div class="test-result info">
+            <h2>📋 ¿Cómo usar este test?</h2>
+            <ol style="margin: 10px 0;">
+                <li>Abre esta página con parámetros de campaña en la URL</li>
+                <li>Ejemplo: <code>?utm_source=google&utm_campaign=test&gclid=123ABC&fbclid=XYZ&phone=5551234567</code></li>
+                <li>El test simulará cómo cada servicio captura los parámetros</li>
+                <li>Verás qué funciona y qué está siendo bloqueado por Safari</li>
+            </ol>
+        </div>
+    </div>
+
+    <div id="stats-container"></div>
+    <div id="results-container"></div>
+
+    <script>
+        // ============================================
+        // CONFIGURACIÓN Y ESTADO GLOBAL
+        // ============================================
+        const testState = {
+            params: {},
+            rawQueryString: '',
+            results: {
+                gtm: null,
+                invoca: null,
+                metaPixel: null,
+                taboola: null,
+                trustpilot: null,
+                environment: null
+            },
+            blockedScripts: [],
+            timing: {
+                start: Date.now(),
+                measurements: {}
+            }
+        };
+
+        // ============================================
+        // CAPTURA INICIAL DE PARÁMETROS
+        // ============================================
+        function captureInitialParams() {
+            console.log('🎯 Capturando parámetros iniciales...');
+            
+            testState.rawQueryString = window.location.search;
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            for (const [key, value] of urlParams) {
+                testState.params[key] = value;
+            }
+            
+            console.log('✓ Parámetros capturados:', testState.params);
+            console.log('✓ Query String:', testState.rawQueryString);
+            
+            return Object.keys(testState.params).length;
+        }
+
+        // ============================================
+        // SIMULACIÓN: GOOGLE TAG MANAGER (GTM)
+        // ============================================
+        function testGTM() {
+            console.log('🏷️ Testing Google Tag Manager...');
+            
+            const result = {
+                service: 'Google Tag Manager (GTM)',
+                timestamp: new Date().toISOString(),
+                success: false,
+                details: {}
+            };
+
+            try {
+                // Simular cómo GTM accede al dataLayer y query params
+                const gtmParams = {};
+                const urlParams = new URLSearchParams(window.location.search);
+                
+                // Parámetros que GTM típicamente busca
+                const gtmKeys = [
+                    'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+                    'gclid', 'gbraid', 'wbraid', // Google Ads
+                    'dclid', // Display & Video 360
+                    'msclkid', // Microsoft Ads
+                    'fbclid', 'fb_action_ids', // Facebook
+                ];
+                
+                gtmKeys.forEach(key => {
+                    const value = urlParams.get(key);
+                    if (value) {
+                        gtmParams[key] = value;
+                    }
+                });
+
+                // Simular dataLayer.push
+                const dataLayerPush = {
+                    event: 'page_view',
+                    page_location: window.location.href,
+                    page_referrer: document.referrer,
+                    campaign_params: gtmParams
+                };
+
+                result.success = true;
+                result.details = {
+                    paramsFound: Object.keys(gtmParams).length,
+                    params: gtmParams,
+                    dataLayerPush: dataLayerPush,
+                    wouldWork: Object.keys(gtmParams).length > 0,
+                    blockingRisk: checkIfGTMWouldBeBlocked()
+                };
+
+                console.log('✓ GTM test completado:', result);
+
+            } catch (error) {
+                result.success = false;
+                result.error = error.message;
+                console.error('✗ GTM test falló:', error);
+            }
+
+            return result;
+        }
+
+        function checkIfGTMWouldBeBlocked() {
+            // Simular si GTM estaría bloqueado
+            const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+            const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS/.test(navigator.userAgent);
+            
+            // GTM se carga típicamente desde googletagmanager.com
+            // Con ATFP en "All Browsing", puede ser bloqueado
+            
+            return {
+                risk: isIOS && isSafari ? 'HIGH' : 'LOW',
+                reason: isIOS && isSafari ? 
+                    'Safari en iOS con ATFP puede bloquear googletagmanager.com' : 
+                    'Navegador no afectado por protecciones de Safari',
+                domains: ['googletagmanager.com', 'www.googletagmanager.com']
+            };
+        }
+
+        // ============================================
+        // SIMULACIÓN: INVOCA (Dynamic Number Insertion)
+        // ============================================
+        function testInvoca() {
+            console.log('📞 Testing Invoca DNI...');
+            
+            const result = {
+                service: 'Invoca (Dynamic Number Insertion)',
+                timestamp: new Date().toISOString(),
+                success: false,
+                details: {}
+            };
+
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                
+                // Parámetros que Invoca necesita capturar
+                const invocaParams = {};
+                const invocaKeys = [
+                    'utm_source', 'utm_medium', 'utm_campaign',
+                    'gclid', 'fbclid', 'msclkid',
+                    'phone', 'campaign_id', 'invoca_session'
+                ];
+                
+                invocaKeys.forEach(key => {
+                    const value = urlParams.get(key);
+                    if (value) {
+                        invocaParams[key] = value;
+                    }
+                });
+
+                // Simular cómo Invoca accede a document.referrer
+                const referrerInfo = {
+                    referrer: document.referrer,
+                    hasReferrer: document.referrer.length > 0,
+                    referrerParams: extractParamsFromURL(document.referrer)
+                };
+
+                // Simular el proceso de DNI
+                const dniSimulation = {
+                    originalNumber: '1-800-555-0100',
+                    replacedNumber: '1-800-555-' + Math.floor(1000 + Math.random() * 9000),
+                    sessionId: 'INV_' + Date.now(),
+                    capturedParams: invocaParams,
+                    canTrackCaller: Object.keys(invocaParams).length > 0
+                };
+
+                result.success = true;
+                result.details = {
+                    paramsFound: Object.keys(invocaParams).length,
+                    params: invocaParams,
+                    referrerInfo: referrerInfo,
+                    dniSimulation: dniSimulation,
+                    criticalIssue: checkInvocaCriticalIssues(invocaParams, referrerInfo)
+                };
+
+                console.log('✓ Invoca test completado:', result);
+
+            } catch (error) {
+                result.success = false;
+                result.error = error.message;
+                console.error('✗ Invoca test falló:', error);
+            }
+
+            return result;
+        }
+
+        function checkInvocaCriticalIssues(params, referrer) {
+            const issues = [];
+            
+            // Issue 1: No campaign params
+            if (!params.utm_source && !params.gclid && !params.fbclid) {
+                issues.push({
+                    severity: 'CRITICAL',
+                    issue: 'No se detectaron parámetros de campaña',
+                    impact: 'Invoca NO podrá atribuir las llamadas a campañas específicas',
+                    solution: 'Los parámetros están siendo eliminados por Safari ATFP'
+                });
+            }
+
+            // Issue 2: No referrer
+            if (!referrer.hasReferrer) {
+                issues.push({
+                    severity: 'WARNING',
+                    issue: 'document.referrer está vacío',
+                    impact: 'Invoca no puede determinar la fuente de tráfico',
+                    solution: 'Navegación directa o referrer bloqueado por privacidad'
+                });
+            }
+
+            // Issue 3: Referrer pero sin params
+            if (referrer.hasReferrer && Object.keys(referrer.referrerParams).length === 0) {
+                issues.push({
+                    severity: 'HIGH',
+                    issue: 'Referrer existe pero sin query parameters',
+                    impact: 'Los parámetros fueron eliminados del referrer',
+                    solution: 'Safari está limpiando document.referrer de tracking params'
+                });
+            }
+
+            return issues;
+        }
+
+        function extractParamsFromURL(url) {
+            if (!url) return {};
+            
+            try {
+                const urlObj = new URL(url);
+                const params = {};
+                const searchParams = new URLSearchParams(urlObj.search);
+                
+                for (const [key, value] of searchParams) {
+                    params[key] = value;
+                }
+                
+                return params;
+            } catch (e) {
+                return {};
+            }
+        }
+
+        // ============================================
+        // SIMULACIÓN: META PIXEL (Facebook)
+        // ============================================
+        function testMetaPixel() {
+            console.log('👤 Testing Meta Pixel (Facebook)...');
+            
+            const result = {
+                service: 'Meta Pixel (Facebook)',
+                timestamp: new Date().toISOString(),
+                success: false,
+                details: {}
+            };
+
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                
+                // Parámetros que Meta Pixel busca
+                const metaParams = {};
+                const metaKeys = [
+                    'fbclid', 'fb_action_ids', 'fb_action_types', 'fb_source',
+                    'utm_source', 'utm_medium', 'utm_campaign', 'utm_content'
+                ];
+                
+                metaKeys.forEach(key => {
+                    const value = urlParams.get(key);
+                    if (value) {
+                        metaParams[key] = value;
+                    }
+                });
+
+                // Simular evento PageView
+                const pageViewEvent = {
+                    event: 'PageView',
+                    timestamp: Date.now(),
+                    url: window.location.href,
+                    referrer: document.referrer,
+                    fbp: 'fb.1.' + Date.now() + '.123456789', // Facebook Browser ID
+                    fbc: metaParams.fbclid ? 'fb.1.' + Date.now() + '.' + metaParams.fbclid : null,
+                    campaignParams: metaParams
+                };
+
+                result.success = true;
+                result.details = {
+                    paramsFound: Object.keys(metaParams).length,
+                    params: metaParams,
+                    pageViewEvent: pageViewEvent,
+                    fbclidPresent: !!metaParams.fbclid,
+                    attributionRisk: assessMetaAttributionRisk(metaParams)
+                };
+
+                console.log('✓ Meta Pixel test completado:', result);
+
+            } catch (error) {
+                result.success = false;
+                result.error = error.message;
+                console.error('✗ Meta Pixel test falló:', error);
+            }
+
+            return result;
+        }
+
+        function assessMetaAttributionRisk(params) {
+            if (!params.fbclid) {
+                return {
+                    risk: 'HIGH',
+                    reason: 'fbclid no presente - Safari ATFP lo eliminó',
+                    impact: 'Conversiones de Facebook no se atribuirán correctamente',
+                    fallback: 'Meta usará Click-Through Attribution (7 días) pero con menor precisión'
+                };
+            }
+            
+            return {
+                risk: 'LOW',
+                reason: 'fbclid presente - atribución funcionará',
+                impact: 'Sin impacto',
+                fallback: 'No necesario'
+            };
+        }
+
+        // ============================================
+        // SIMULACIÓN: TABOOLA
+        // ============================================
+        function testTaboola() {
+            console.log('📰 Testing Taboola...');
+            
+            const result = {
+                service: 'Taboola',
+                timestamp: new Date().toISOString(),
+                success: false,
+                details: {}
+            };
+
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                
+                // Parámetros que Taboola usa
+                const taboolaParams = {};
+                const taboolaKeys = [
+                    'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
+                    'tblci', // Taboola Click ID
+                    'tb_cid', 'tb_campaign', 'tb_creative'
+                ];
+                
+                taboolaKeys.forEach(key => {
+                    const value = urlParams.get(key);
+                    if (value) {
+                        taboolaParams[key] = value;
+                    }
+                });
+
+                // Simular Taboola Pixel event
+                const pixelEvent = {
+                    event_name: 'page_view',
+                    url: window.location.href,
+                    referrer: document.referrer,
+                    tblci: taboolaParams.tblci || null,
+                    campaign_params: taboolaParams
+                };
+
+                result.success = true;
+                result.details = {
+                    paramsFound: Object.keys(taboolaParams).length,
+                    params: taboolaParams,
+                    pixelEvent: pixelEvent,
+                    tblciPresent: !!taboolaParams.tblci,
+                    trackingStatus: taboolaParams.tblci ? 'ACTIVO' : 'DEGRADADO'
+                };
+
+                console.log('✓ Taboola test completado:', result);
+
+            } catch (error) {
+                result.success = false;
+                result.error = error.message;
+                console.error('✗ Taboola test falló:', error);
+            }
+
+            return result;
+        }
+
+        // ============================================
+        // SIMULACIÓN: TRUSTPILOT
+        // ============================================
+        function testTrustpilot() {
+            console.log('⭐ Testing Trustpilot...');
+            
+            const result = {
+                service: 'Trustpilot',
+                timestamp: new Date().toISOString(),
+                success: false,
+                details: {}
+            };
+
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                
+                // Trustpilot típicamente usa menos parámetros
+                const trustpilotParams = {};
+                const trustpilotKeys = [
+                    'utm_source', 'utm_medium', 'utm_campaign',
+                    'tp_ref', 'tp_source'
+                ];
+                
+                trustpilotKeys.forEach(key => {
+                    const value = urlParams.get(key);
+                    if (value) {
+                        trustpilotParams[key] = value;
+                    }
+                });
+
+                result.success = true;
+                result.details = {
+                    paramsFound: Object.keys(trustpilotParams).length,
+                    params: trustpilotParams,
+                    impactLevel: 'LOW', // Trustpilot menos dependiente de params
+                    note: 'Trustpilot principalmente usa cookies first-party, menor impacto'
+                };
+
+                console.log('✓ Trustpilot test completado:', result);
+
+            } catch (error) {
+                result.success = false;
+                result.error = error.message;
+                console.error('✗ Trustpilot test falló:', error);
+            }
+
+            return result;
+        }
+
+        // ============================================
+        // DETECCIÓN DE ENTORNO
+        // ============================================
+        function detectEnvironment() {
+            console.log('🌍 Detectando entorno...');
+            
+            const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+            const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/.test(navigator.userAgent);
+            
+            return {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                isIOS: isIOS,
+                isSafari: isSafari,
+                isProtectedEnvironment: isIOS && isSafari,
+                url: window.location.href,
+                queryString: window.location.search,
+                referrer: document.referrer,
+                cookiesEnabled: navigator.cookieEnabled,
+                doNotTrack: navigator.doNotTrack,
+                language: navigator.language
+            };
+        }
+
+        // ============================================
+        // EJECUCIÓN DE TODOS LOS TESTS
+        // ============================================
+        async function runAllTests() {
+            console.log('=== INICIANDO TESTS DE STACK DE PRODUCCIÓN ===');
+            
+            const startTime = Date.now();
+            
+            // Capturar parámetros iniciales
+            const paramCount = captureInitialParams();
+            
+            // Detectar entorno
+            testState.results.environment = detectEnvironment();
+            
+            // Ejecutar tests de cada servicio
+            testState.results.gtm = testGTM();
+            testState.results.invoca = testInvoca();
+            testState.results.metaPixel = testMetaPixel();
+            testState.results.taboola = testTaboola();
+            testState.results.trustpilot = testTrustpilot();
+            
+            const endTime = Date.now();
+            testState.timing.total = endTime - startTime;
+            
+            console.log('=== TESTS COMPLETADOS EN ' + testState.timing.total + 'ms ===');
+            
+            // Mostrar resultados
+            displayStats();
+            displayResults();
+        }
+
+        // ============================================
+        // VISUALIZACIÓN: ESTADÍSTICAS
+        // ============================================
+        function displayStats() {
+            const container = document.getElementById('stats-container');
+            const paramCount = Object.keys(testState.params).length;
+            const servicesCount = 5;
+            const workingServices = [
+                testState.results.gtm,
+                testState.results.invoca,
+                testState.results.metaPixel,
+                testState.results.taboola,
+                testState.results.trustpilot
+            ].filter(s => s && s.success).length;
+            
+            // Contar issues críticos
+            let criticalIssues = 0;
+            if (testState.results.invoca?.details?.criticalIssue) {
+                criticalIssues += testState.results.invoca.details.criticalIssue.filter(i => i.severity === 'CRITICAL').length;
+            }
+            if (testState.results.metaPixel?.details?.attributionRisk?.risk === 'HIGH') {
+                criticalIssues++;
+            }
+            
+            let html = '<div class="container">';
+            html += '<div class="stat-grid">';
+            
+            html += '<div class="stat-card">';
+            html += '<div class="stat-number">' + paramCount + '</div>';
+            html += '<div class="stat-label">Query Parameters</div>';
+            html += '</div>';
+            
+            html += '<div class="stat-card">';
+            html += '<div class="stat-number">' + workingServices + '/' + servicesCount + '</div>';
+            html += '<div class="stat-label">Servicios OK</div>';
+            html += '</div>';
+            
+            html += '<div class="stat-card">';
+            html += '<div class="stat-number" style="color: ' + (criticalIssues > 0 ? '#dc3545' : '#28a745') + '">' + criticalIssues + '</div>';
+            html += '<div class="stat-label">Issues Críticos</div>';
+            html += '</div>';
+            
+            html += '<div class="stat-card">';
+            html += '<div class="stat-number">' + testState.timing.total + 'ms</div>';
+            html += '<div class="stat-label">Tiempo de Test</div>';
+            html += '</div>';
+            
+            html += '</div>';
+            html += '</div>';
+            
+            container.innerHTML = html;
+        }
+
+        // ============================================
+        // VISUALIZACIÓN: RESULTADOS DETALLADOS
+        // ============================================
+        function displayResults() {
+            const container = document.getElementById('results-container');
+            let html = '';
+
+            // Alerta crítica si hay problemas
+            const paramCount = Object.keys(testState.params).length;
+            const env = testState.results.environment;
+            
+            if (env.isProtectedEnvironment && paramCount === 0) {
+                html += '<div class="critical-issue">';
+                html += '<h2 style="color: white; margin-top: 0;">🚨 PROBLEMA CRÍTICO DETECTADO</h2>';
+                html += '<p><strong>Safari en iOS sin query parameters detectados.</strong></p>';
+                html += '<p>Esto significa que TODOS tus scripts de tracking (GTM, Invoca, Meta, Taboola) NO pueden funcionar correctamente.</p>';
+                html += '<h3 style="color: white;">Acción Inmediata:</h3>';
+                html += '<ol>';
+                html += '<li>Verifica: <code>Settings > Apps > Safari > Advanced > Advanced Tracking and Fingerprinting Protection</code></li>';
+                html += '<li>Si está en "All Browsing", cámbialo a "Private Browsing"</li>';
+                html += '<li>Si el problema persiste, implementa Server-Side Tracking</li>';
+                html += '</ol>';
+                html += '</div>';
+            }
+
+            // Entorno
+            html += '<div class="container">';
+            html += '<h2>🌍 Entorno de Prueba</h2>';
+            html += '<table>';
+            html += '<tr><th>Propiedad</th><th>Valor</th></tr>';
+            html += '<tr><td>Navegador</td><td>' + (env.isSafari ? '✓ Safari' : '✗ Otro') + '</td></tr>';
+            html += '<tr><td>Plataforma</td><td>' + (env.isIOS ? '✓ iOS' : '✗ Otra') + '</td></tr>';
+            html += '<tr><td>Entorno Protegido</td><td>' + (env.isProtectedEnvironment ? '⚠️ SÍ (Safari en iOS)' : '✓ NO') + '</td></tr>';
+            html += '<tr><td>Query String</td><td><code>' + (env.queryString || '(vacío)') + '</code></td></tr>';
+            html += '<tr><td>Referrer</td><td><code>' + (env.referrer || '(vacío)') + '</code></td></tr>';
+            html += '</table>';
+            html += '</div>';
+
+            // GTM
+            html += buildServiceResult(testState.results.gtm, '🏷️');
+
+            // Invoca
+            html += buildServiceResult(testState.results.invoca, '📞');
+
+            // Meta Pixel
+            html += buildServiceResult(testState.results.metaPixel, '👤');
+
+            // Taboola
+            html += buildServiceResult(testState.results.taboola, '📰');
+
+            // Trustpilot
+            html += buildServiceResult(testState.results.trustpilot, '⭐');
+
+            // Recomendaciones
+            html += buildRecommendations();
+
+            container.innerHTML = html;
+        }
+
+        function buildServiceResult(result, emoji) {
+            if (!result) return '';
+            
+            const statusClass = result.success ? 'success' : 'error';
+            const badge = result.success ? 
+                '<span class="badge badge-success">OK</span>' : 
+                '<span class="badge badge-error">FALLÓ</span>';
+            
+            let html = '<div class="container">';
+            html += '<div class="test-result ' + statusClass + '">';
+            html += '<h2>' + emoji + ' ' + result.service + ' ' + badge + '</h2>';
+            
+            if (result.success) {
+                html += '<p><strong>Parámetros detectados:</strong> ' + result.details.paramsFound + '</p>';
+                
+                // Accordion para detalles
+                html += '<div class="accordion">';
+                html += '<div class="accordion-header" onclick="toggleAccordion(this)">▶ Ver detalles completos</div>';
+                html += '<div class="accordion-content">';
+                html += '<div class="script-box">' + JSON.stringify(result.details, null, 2) + '</div>';
+                html += '</div>';
+                html += '</div>';
+                
+                // Issues específicos de Invoca
+                if (result.service.includes('Invoca') && result.details.criticalIssue?.length > 0) {
+                    html += '<h3 style="color: #dc3545; margin-top: 20px;">⚠️ Issues Detectados:</h3>';
+                    result.details.criticalIssue.forEach(issue => {
+                        html += '<div class="test-result error" style="margin: 10px 0;">';
+                        html += '<p><strong>Severidad:</strong> ' + issue.severity + '</p>';
+                        html += '<p><strong>Problema:</strong> ' + issue.issue + '</p>';
+                        html += '<p><strong>Impacto:</strong> ' + issue.impact + '</p>';
+                        html += '<p><strong>Solución:</strong> ' + issue.solution + '</p>';
+                        html += '</div>';
+                    });
+                }
+                
+                // Risk de Meta Pixel
+                if (result.service.includes('Meta') && result.details.attributionRisk?.risk === 'HIGH') {
+                    html += '<div class="test-result error" style="margin-top: 15px;">';
+                    html += '<h3 style="color: #dc3545; margin-top: 0;">⚠️ Riesgo de Atribución</h3>';
+                    html += '<p><strong>Nivel:</strong> ' + result.details.attributionRisk.risk + '</p>';
+                    html += '<p><strong>Razón:</strong> ' + result.details.attributionRisk.reason + '</p>';
+                    html += '<p><strong>Impacto:</strong> ' + result.details.attributionRisk.impact + '</p>';
+                    html += '</div>';
+                }
+                
+            } else {
+                html += '<p style="color: #721c24;"><strong>Error:</strong> ' + result.error + '</p>';
+            }
+            
+            html += '</div>';
+            html += '</div>';
+            
+            return html;
+        }
+
+        function buildRecommendations() {
+            const paramCount = Object.keys(testState.params).length;
+            const env = testState.results.environment;
+            
+            let html = '<div class="container">';
+            html += '<div class="test-result warning">';
+            html += '<h2>💡 Recomendaciones</h2>';
+            
+            if (env.isProtectedEnvironment && paramCount === 0) {
+                html += '<h3>🔴 Prioridad ALTA - Acción Inmediata Requerida</h3>';
+                html += '<ol>';
+                html += '<li><strong>Implementar Server-Side Tracking:</strong> Captura los parámetros en el servidor antes de que Safari los elimine</li>';
+                html += '<li><strong>Usar Server-Side GTM:</strong> Migra de GTM cliente a Server-Side GTM Container</li>';
+                html += '<li><strong>Invoca Server-Side Integration:</strong> Usa la API de Invoca directamente desde el servidor</li>';
+                html += '<li><strong>Meta Conversions API:</strong> Implementa la Conversions API para enviar eventos desde el servidor</li>';
+                html += '</ol>';
+            } else if (paramCount > 0) {
+                html += '<h3>🟡 Prioridad MEDIA - Mejoras Recomendadas</h3>';
+                html += '<ol>';
+                html += '<li><strong>Monitoreo:</strong> Implementa alertas cuando parámetros críticos (gclid, fbclid) no estén presentes</li>';
+                html += '<li><strong>Fallbacks:</strong> Usa cookies first-party como respaldo cuando query params fallen</li>';
+                html += '<li><strong>Testing Continuo:</strong> Prueba regularmente en iOS Safari para detectar cambios</li>';
+                html += '</ol>';
+            }
+            
+            html += '<h3>📚 Recursos Adicionales</h3>';
+            html += '<ul>';
+            html += '<li><a href="https://developers.google.com/tag-platform/tag-manager/server-side" target="_blank">Google Tag Manager Server-Side</a></li>';
+            html += '<li><a href="https://developers.facebook.com/docs/marketing-api/conversions-api" target="_blank">Meta Conversions API</a></li>';
+            html += '<li><a href="https://community.invoca.com/" target="_blank">Invoca Developer Community</a></li>';
+            html += '</ul>';
+            
+            html += '</div>';
+            html += '</div>';
+            
+            return html;
+        }
+
+        function toggleAccordion(element) {
+            const content = element.nextElementSibling;
+            const isActive = content.classList.contains('active');
+            
+            // Cerrar todos los accordions
+            document.querySelectorAll('.accordion-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.querySelectorAll('.accordion-header').forEach(el => {
+                el.textContent = el.textContent.replace('▼', '▶');
+            });
+            
+            // Abrir/cerrar el clickeado
+            if (!isActive) {
+                content.classList.add('active');
+                element.textContent = element.textContent.replace('▶', '▼');
+            }
+        }
+
+        // ============================================
+        // INICIAR TESTS
+        // ============================================
+        window.addEventListener('load', () => {
+            runAllTests();
+        });
+    </script>
+</body>
+</html>
