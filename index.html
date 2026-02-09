@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico Query Params - iOS Safari</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-result { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; }
+        .code { 
+            background: #f4f4f4; 
+            padding: 10px; 
+            border-radius: 3px;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        h2 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .info { color: #666; font-size: 14px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Diagnóstico de Query Parameters - iOS Safari</h1>
+    
+    <div class="info">
+        <strong>Instrucciones:</strong> Abre esta página con query parameters en la URL<br>
+        Ejemplo: <code>https://tudominio.com/test.html?utm_source=email&utm_campaign=test&gclid=123ABC&session_id=xyz789</code>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        // Función para obtener todos los query parameters
+        function getAllQueryParams() {
+            const params = {};
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            for (const [key, value] of urlParams) {
+                params[key] = value;
+            }
+            
+            return params;
+        }
+
+        // Función para obtener info del navegador
+        function getBrowserInfo() {
+            return {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                vendor: navigator.vendor,
+                language: navigator.language,
+                cookieEnabled: navigator.cookieEnabled,
+                doNotTrack: navigator.doNotTrack
+            };
+        }
+
+        // Función para verificar protecciones de Safari
+        function checkSafariProtections() {
+            const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+            const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/.test(navigator.userAgent);
+            
+            return {
+                isIOS: isIOS,
+                isSafari: isSafari,
+                likelyProtected: isIOS && isSafari
+            };
+        }
+
+        // Función para mostrar resultados
+        function displayResults() {
+            const resultsDiv = document.getElementById('results');
+            const params = getAllQueryParams();
+            const browserInfo = getBrowserInfo();
+            const safariCheck = checkSafariProtections();
+            
+            let html = '';
+
+            // Test 1: Detección de Safari/iOS
+            html += '<div class="test-result ' + (safariCheck.likelyProtected ? 'warning' : 'success') + '">';
+            html += '<h2>✓ Test 1: Detección de Navegador</h2>';
+            html += '<p><strong>iOS detectado:</strong> ' + (safariCheck.isIOS ? 'SÍ ⚠️' : 'NO ✓') + '</p>';
+            html += '<p><strong>Safari detectado:</strong> ' + (safariCheck.isSafari ? 'SÍ ⚠️' : 'NO ✓') + '</p>';
+            html += '<div class="code">' + browserInfo.userAgent + '</div>';
+            html += '</div>';
+
+            // Test 2: URL Completa
+            html += '<div class="test-result">';
+            html += '<h2>✓ Test 2: URL Completa</h2>';
+            html += '<p><strong>URL actual:</strong></p>';
+            html += '<div class="code">' + window.location.href + '</div>';
+            html += '<p><strong>Query String:</strong></p>';
+            html += '<div class="code">' + (window.location.search || '(vacío)') + '</div>';
+            html += '</div>';
+
+            // Test 3: Query Parameters Detectados
+            const paramCount = Object.keys(params).length;
+            html += '<div class="test-result ' + (paramCount > 0 ? 'success' : 'error') + '">';
+            html += '<h2>✓ Test 3: Query Parameters Detectados</h2>';
+            html += '<p><strong>Total de parámetros encontrados:</strong> ' + paramCount + '</p>';
+            
+            if (paramCount > 0) {
+                html += '<table style="width:100%; border-collapse: collapse; margin-top: 10px;">';
+                html += '<tr style="background: #f0f0f0;"><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Parámetro</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Valor</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Tipo</th></tr>';
+                
+                for (const [key, value] of Object.entries(params)) {
+                    let tipo = 'Otro';
+                    if (key.startsWith('utm_')) tipo = 'UTM (Marketing)';
+                    else if (['gclid', 'fbclid', 'msclkid'].includes(key)) tipo = 'Click ID';
+                    else if (key.includes('session') || key.includes('token')) tipo = 'Sesión';
+                    
+                    html += '<tr>';
+                    html += '<td style="padding: 8px; border: 1px solid #ddd;"><code>' + key + '</code></td>';
+                    html += '<td style="padding: 8px; border: 1px solid #ddd;"><code>' + value + '</code></td>';
+                    html += '<td style="padding: 8px; border: 1px solid #ddd;">' + tipo + '</td>';
+                    html += '</tr>';
+                }
+                html += '</table>';
+            } else {
+                html += '<p style="color: #721c24;">⚠️ <strong>NO se detectaron query parameters.</strong></p>';
+                html += '<p>Esto puede deberse a:</p>';
+                html += '<ul>';
+                html += '<li>Advanced Tracking and Fingerprinting Protection está activo en "All Browsing"</li>';
+                html += '<li>Los parámetros fueron eliminados por Link Tracking Protection</li>';
+                html += '<li>La URL no contenía parámetros al cargar</li>';
+                html += '</ul>';
+            }
+            html += '</div>';
+
+            // Test 4: document.referrer
+            html += '<div class="test-result ' + (document.referrer ? 'success' : 'warning') + '">';
+            html += '<h2>✓ Test 4: Document Referrer</h2>';
+            html += '<p><strong>Referrer:</strong></p>';
+            html += '<div class="code">' + (document.referrer || '(vacío - navegación directa)') + '</div>';
+            html += '</div>';
+
+            // Test 5: Capacidad de Cookies
+            html += '<div class="test-result ' + (navigator.cookieEnabled ? 'success' : 'error') + '">';
+            html += '<h2>✓ Test 5: Cookies Habilitadas</h2>';
+            html += '<p><strong>Estado:</strong> ' + (navigator.cookieEnabled ? 'HABILITADAS ✓' : 'DESHABILITADAS ✗') + '</p>';
+            html += '</div>';
+
+            // Test 6: LocalStorage disponible
+            let localStorageAvailable = false;
+            try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                localStorageAvailable = true;
+            } catch(e) {
+                localStorageAvailable = false;
+            }
+            
+            html += '<div class="test-result ' + (localStorageAvailable ? 'success' : 'error') + '">';
+            html += '<h2>✓ Test 6: LocalStorage Disponible</h2>';
+            html += '<p><strong>Estado:</strong> ' + (localStorageAvailable ? 'DISPONIBLE ✓' : 'BLOQUEADO ✗') + '</p>';
+            html += '</div>';
+
+            // Recomendaciones
+            html += '<div class="test-result warning">';
+            html += '<h2>💡 Recomendaciones</h2>';
+            
+            if (safariCheck.likelyProtected && paramCount === 0) {
+                html += '<p><strong>Problema detectado:</strong> Navegador Safari en iOS sin query parameters.</p>';
+                html += '<h3>Verifica en el dispositivo iOS:</h3>';
+                html += '<ol>';
+                html += '<li>Ve a <code>Ajustes > Apps > Safari > Avanzado</code></li>';
+                html += '<li>Toca <code>Protección avanzada contra rastreo y fingerprinting</code></li>';
+                html += '<li>Verifica si está en <strong>"Toda la navegación"</strong> o <strong>"Navegación privada"</strong></li>';
+                html += '<li>Si está en "Toda la navegación", cámbialo temporalmente a "Navegación privada" para probar</li>';
+                html += '</ol>';
+            }
+            
+            html += '<h3>Soluciones alternativas:</h3>';
+            html += '<ul>';
+            html += '<li><strong>Server-Side Tracking:</strong> Captura los parámetros en el servidor antes de que Safari los elimine</li>';
+            html += '<li><strong>POST en lugar de GET:</strong> Envía datos de campaña via POST</li>';
+            html += '<li><strong>Cookies First-Party:</strong> El servidor establece cookies con los datos de campaña</li>';
+            html += '<li><strong>Hash/Fragment:</strong> Usa el hash de la URL (#) en lugar de query params (?)</li>';
+            html += '</ul>';
+            html += '</div>';
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Ejecutar cuando cargue la página
+        window.addEventListener('load', displayResults);
+    </script>
+</body>
+</html>
