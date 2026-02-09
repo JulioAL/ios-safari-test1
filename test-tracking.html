@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Scripts de Tracking - iOS Safari</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .test-result { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border-radius: 5px;
+            border: 2px solid #ddd;
+        }
+        .success { background-color: #d4edda; border-color: #28a745; }
+        .error { background-color: #f8d7da; border-color: #dc3545; }
+        .warning { background-color: #fff3cd; border-color: #ffc107; }
+        .info { background-color: #d1ecf1; border-color: #17a2b8; }
+        .code { 
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px; 
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+        h1 { color: #333; }
+        h2 { 
+            color: #007bff; 
+            border-bottom: 2px solid #007bff; 
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 12px;
+            font-style: italic;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .console-log {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            padding: 5px;
+            margin: 2px 0;
+            border-left: 3px solid #007bff;
+            background: #f8f9fa;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        .log-error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .log-warn {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔬 Test Avanzado: Scripts de Tracking en iOS Safari</h1>
+    
+    <div class="test-result info">
+        <h2>📋 Instrucciones</h2>
+        <p>Esta página simula cómo tus scripts de tracking capturan los query parameters.</p>
+        <ol>
+            <li>Abre esta página con parámetros: <code>?utm_source=email&utm_campaign=test&gclid=123&session_id=abc</code></li>
+            <li>Verifica cada test abajo</li>
+            <li>Si algún test falla, ese es tu problema</li>
+        </ol>
+    </div>
+
+    <div id="console-output"></div>
+    <div id="results"></div>
+
+    <script>
+        // ============================================
+        // SISTEMA DE LOGGING PERSONALIZADO
+        // ============================================
+        const customLog = {
+            entries: [],
+            originalConsole: {
+                log: console.log,
+                error: console.error,
+                warn: console.warn
+            },
+            
+            add: function(type, message, data) {
+                const entry = {
+                    type: type,
+                    message: message,
+                    data: data,
+                    timestamp: new Date().toISOString()
+                };
+                this.entries.push(entry);
+                
+                // También log al console real
+                this.originalConsole[type](message, data || '');
+            },
+            
+            log: function(message, data) { this.add('log', message, data); },
+            error: function(message, data) { this.add('error', message, data); },
+            warn: function(message, data) { this.add('warn', message, data); },
+            
+            display: function() {
+                const container = document.getElementById('console-output');
+                let html = '<div class="test-result">';
+                html += '<h2>📝 Console Log (Registro de Eventos)</h2>';
+                html += '<div class="console-log">';
+                
+                if (this.entries.length === 0) {
+                    html += '<p>No hay entradas en el log.</p>';
+                } else {
+                    this.entries.forEach(entry => {
+                        const cssClass = entry.type === 'error' ? 'log-error' : 
+                                       entry.type === 'warn' ? 'log-warn' : '';
+                        html += '<div class="log-entry ' + cssClass + '">';
+                        html += '<strong>[' + entry.type.toUpperCase() + ']</strong> ';
+                        html += entry.message;
+                        if (entry.data) {
+                            html += ' → <code>' + JSON.stringify(entry.data) + '</code>';
+                        }
+                        html += ' <span class="timestamp">(' + new Date(entry.timestamp).toLocaleTimeString() + ')</span>';
+                        html += '</div>';
+                    });
+                }
+                
+                html += '</div></div>';
+                container.innerHTML = html;
+            }
+        };
+
+        // Override console methods
+        console.log = function() { 
+            customLog.log(Array.from(arguments).join(' '));
+        };
+        console.error = function() { 
+            customLog.error(Array.from(arguments).join(' '));
+        };
+        console.warn = function() { 
+            customLog.warn(Array.from(arguments).join(' '));
+        };
+
+        // ============================================
+        // SIMULACIÓN DE DIFERENTES MÉTODOS DE CAPTURA
+        // ============================================
+        
+        // Método 1: URLSearchParams (Moderno)
+        function getParamsMethod1() {
+            console.log('Test Método 1: URLSearchParams');
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const result = {};
+                for (const [key, value] of params) {
+                    result[key] = value;
+                }
+                console.log('Método 1 OK', result);
+                return { success: true, params: result, method: 'URLSearchParams' };
+            } catch (error) {
+                console.error('Método 1 FALLÓ', error.message);
+                return { success: false, error: error.message, method: 'URLSearchParams' };
+            }
+        }
+
+        // Método 2: Parsing manual del query string
+        function getParamsMethod2() {
+            console.log('Test Método 2: Parsing Manual');
+            try {
+                const queryString = window.location.search.substring(1);
+                if (!queryString) {
+                    console.warn('Método 2: Query string vacío');
+                    return { success: true, params: {}, method: 'Manual Parsing', warning: 'Query string vacío' };
+                }
+                
+                const params = {};
+                const pairs = queryString.split('&');
+                
+                pairs.forEach(pair => {
+                    const [key, value] = pair.split('=');
+                    params[decodeURIComponent(key)] = decodeURIComponent(value || '');
+                });
+                
+                console.log('Método 2 OK', params);
+                return { success: true, params: params, method: 'Manual Parsing' };
+            } catch (error) {
+                console.error('Método 2 FALLÓ', error.message);
+                return { success: false, error: error.message, method: 'Manual Parsing' };
+            }
+        }
+
+        // Método 3: Regex (método antiguo pero común)
+        function getParamsMethod3() {
+            console.log('Test Método 3: Regex');
+            try {
+                const params = {};
+                const queryString = window.location.search;
+                
+                if (!queryString) {
+                    console.warn('Método 3: Query string vacío');
+                    return { success: true, params: {}, method: 'Regex', warning: 'Query string vacío' };
+                }
+                
+                const regex = /[?&]([^=&]+)=([^&]*)/g;
+                let match;
+                
+                while ((match = regex.exec(queryString)) !== null) {
+                    params[decodeURIComponent(match[1])] = decodeURIComponent(match[2]);
+                }
+                
+                console.log('Método 3 OK', params);
+                return { success: true, params: params, method: 'Regex' };
+            } catch (error) {
+                console.error('Método 3 FALLÓ', error.message);
+                return { success: false, error: error.message, method: 'Regex' };
+            }
+        }
+
+        // Método 4: Acceso a location.search directamente
+        function getParamsMethod4() {
+            console.log('Test Método 4: location.search directo');
+            try {
+                const queryString = window.location.search;
+                console.log('Método 4 - Query String Raw', queryString);
+                return { 
+                    success: true, 
+                    params: { raw: queryString }, 
+                    method: 'location.search',
+                    isEmpty: queryString.length === 0
+                };
+            } catch (error) {
+                console.error('Método 4 FALLÓ', error.message);
+                return { success: false, error: error.message, method: 'location.search' };
+            }
+        }
+
+        // ============================================
+        // SIMULACIÓN DE SCRIPTS EXTERNOS
+        // ============================================
+        
+        // Simular script que se carga después (como scripts de terceros)
+        function simulateDelayedScript() {
+            console.log('Test: Script con Delay (simulando carga externa)');
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    const params = new URLSearchParams(window.location.search);
+                    const result = {};
+                    for (const [key, value] of params) {
+                        result[key] = value;
+                    }
+                    console.log('Script Delayed capturó parámetros', result);
+                    resolve({ 
+                        success: true, 
+                        params: result, 
+                        method: 'Delayed Script (1 segundo)',
+                        delay: '1000ms'
+                    });
+                }, 1000);
+            });
+        }
+
+        // Simular acceso desde iframe (importante para algunos trackers)
+        function simulateIframeAccess() {
+            console.log('Test: Acceso desde contexto similar a iframe');
+            try {
+                // Verificar si podemos acceder a parent (algunos trackers lo hacen)
+                const canAccessParent = window.parent === window;
+                const params = new URLSearchParams(window.location.search);
+                const result = {};
+                for (const [key, value] of params) {
+                    result[key] = value;
+                }
+                
+                console.log('Iframe test OK', result);
+                return { 
+                    success: true, 
+                    params: result, 
+                    method: 'Iframe Context',
+                    isTopWindow: canAccessParent
+                };
+            } catch (error) {
+                console.error('Iframe test FALLÓ', error.message);
+                return { success: false, error: error.message, method: 'Iframe Context' };
+            }
+        }
+
+        // ============================================
+        // TEST DE TIMING (Cuándo se ejecuta el script)
+        // ============================================
+        
+        const timingTests = {
+            documentStart: null,
+            domContentLoaded: null,
+            windowLoad: null,
+            
+            captureAtDocumentStart: function() {
+                const params = new URLSearchParams(window.location.search);
+                const result = {};
+                for (const [key, value] of params) {
+                    result[key] = value;
+                }
+                this.documentStart = {
+                    time: 'Document Start (inmediato)',
+                    params: result,
+                    count: Object.keys(result).length
+                };
+                console.log('Captura en Document Start', result);
+            },
+            
+            captureAtDOMContentLoaded: function() {
+                document.addEventListener('DOMContentLoaded', () => {
+                    const params = new URLSearchParams(window.location.search);
+                    const result = {};
+                    for (const [key, value] of params) {
+                        result[key] = value;
+                    }
+                    this.domContentLoaded = {
+                        time: 'DOMContentLoaded',
+                        params: result,
+                        count: Object.keys(result).length
+                    };
+                    console.log('Captura en DOMContentLoaded', result);
+                });
+            },
+            
+            captureAtWindowLoad: function() {
+                window.addEventListener('load', () => {
+                    const params = new URLSearchParams(window.location.search);
+                    const result = {};
+                    for (const [key, value] of params) {
+                        result[key] = value;
+                    }
+                    this.windowLoad = {
+                        time: 'Window Load (completamente cargado)',
+                        params: result,
+                        count: Object.keys(result).length
+                    };
+                    console.log('Captura en Window Load', result);
+                });
+            },
+            
+            getResults: function() {
+                return {
+                    documentStart: this.documentStart,
+                    domContentLoaded: this.domContentLoaded,
+                    windowLoad: this.windowLoad
+                };
+            }
+        };
+
+        // Ejecutar tests de timing
+        timingTests.captureAtDocumentStart();
+        timingTests.captureAtDOMContentLoaded();
+        timingTests.captureAtWindowLoad();
+
+        // ============================================
+        // EJECUCIÓN Y VISUALIZACIÓN DE RESULTADOS
+        // ============================================
+        
+        async function runAllTests() {
+            console.log('=== INICIANDO BATERÍA DE TESTS ===');
+            
+            const results = {
+                methods: [],
+                delayed: null,
+                iframe: null,
+                timing: null,
+                environment: {
+                    userAgent: navigator.userAgent,
+                    isIOS: /iPhone|iPad|iPod/.test(navigator.userAgent),
+                    isSafari: /Safari/.test(navigator.userAgent) && !/Chrome|CriOS/.test(navigator.userAgent),
+                    url: window.location.href,
+                    queryString: window.location.search
+                }
+            };
+
+            // Tests síncronos
+            results.methods.push(getParamsMethod1());
+            results.methods.push(getParamsMethod2());
+            results.methods.push(getParamsMethod3());
+            results.methods.push(getParamsMethod4());
+            results.iframe = simulateIframeAccess();
+            
+            // Test asíncrono
+            results.delayed = await simulateDelayedScript();
+            
+            // Esperar a que window.load ocurra
+            await new Promise(resolve => {
+                if (document.readyState === 'complete') {
+                    resolve();
+                } else {
+                    window.addEventListener('load', resolve);
+                }
+            });
+            
+            // Capturar timing results
+            results.timing = timingTests.getResults();
+            
+            console.log('=== TESTS COMPLETADOS ===');
+            
+            displayResults(results);
+            customLog.display();
+        }
+
+        function displayResults(results) {
+            const container = document.getElementById('results');
+            let html = '';
+
+            // Entorno
+            const isProtected = results.environment.isIOS && results.environment.isSafari;
+            html += '<div class="test-result ' + (isProtected ? 'warning' : 'success') + '">';
+            html += '<h2>🌍 Entorno de Prueba</h2>';
+            html += '<table>';
+            html += '<tr><th>Propiedad</th><th>Valor</th></tr>';
+            html += '<tr><td>iOS Detectado</td><td>' + (results.environment.isIOS ? '✓ SÍ' : '✗ NO') + '</td></tr>';
+            html += '<tr><td>Safari Detectado</td><td>' + (results.environment.isSafari ? '✓ SÍ' : '✗ NO') + '</td></tr>';
+            html += '<tr><td>URL Completa</td><td><code>' + results.environment.url + '</code></td></tr>';
+            html += '<tr><td>Query String</td><td><code>' + (results.environment.queryString || '(vacío)') + '</code></td></tr>';
+            html += '</table>';
+            html += '</div>';
+
+            // Métodos de captura
+            html += '<div class="test-result">';
+            html += '<h2>🔧 Métodos de Captura de Parámetros</h2>';
+            html += '<table>';
+            html += '<tr><th>Método</th><th>Estado</th><th>Parámetros Capturados</th><th>Total</th></tr>';
+            
+            results.methods.forEach(result => {
+                const status = result.success ? '✓ OK' : '✗ FALLÓ';
+                const cssClass = result.success ? 'success' : 'error';
+                const count = result.params ? Object.keys(result.params).length : 0;
+                
+                html += '<tr class="' + cssClass + '">';
+                html += '<td><strong>' + result.method + '</strong></td>';
+                html += '<td>' + status + '</td>';
+                html += '<td><code>' + (result.params ? JSON.stringify(result.params) : result.error) + '</code></td>';
+                html += '<td>' + count + '</td>';
+                html += '</tr>';
+            });
+            
+            html += '</table>';
+            html += '</div>';
+
+            // Test de Delay
+            html += '<div class="test-result ' + (results.delayed.success ? 'success' : 'error') + '">';
+            html += '<h2>⏱️ Test de Script con Delay (Simula carga externa)</h2>';
+            html += '<p><strong>Método:</strong> ' + results.delayed.method + '</p>';
+            html += '<p><strong>Delay:</strong> ' + results.delayed.delay + '</p>';
+            html += '<p><strong>Parámetros capturados:</strong> <code>' + JSON.stringify(results.delayed.params) + '</code></p>';
+            html += '<p><strong>Total:</strong> ' + Object.keys(results.delayed.params).length + '</p>';
+            html += '</div>';
+
+            // Test de Timing
+            html += '<div class="test-result">';
+            html += '<h2>📅 Test de Timing (Cuándo capturar)</h2>';
+            html += '<p>Algunos scripts capturan parámetros en diferentes momentos. Aquí comparamos:</p>';
+            html += '<table>';
+            html += '<tr><th>Momento</th><th>Parámetros</th><th>Total</th></tr>';
+            
+            Object.entries(results.timing).forEach(([key, value]) => {
+                if (value) {
+                    html += '<tr>';
+                    html += '<td><strong>' + value.time + '</strong></td>';
+                    html += '<td><code>' + JSON.stringify(value.params) + '</code></td>';
+                    html += '<td>' + value.count + '</td>';
+                    html += '</tr>';
+                }
+            });
+            
+            html += '</table>';
+            html += '</div>';
+
+            // Diagnóstico final
+            const allMethodsWork = results.methods.every(m => m.success);
+            const paramsDetected = results.methods[0].params && Object.keys(results.methods[0].params).length > 0;
+            
+            html += '<div class="test-result ' + (allMethodsWork && paramsDetected ? 'success' : 'error') + '">';
+            html += '<h2>🎯 Diagnóstico Final</h2>';
+            
+            if (allMethodsWork && paramsDetected) {
+                html += '<p>✅ <strong>TODOS LOS MÉTODOS FUNCIONAN CORRECTAMENTE</strong></p>';
+                html += '<p>Los query parameters están llegando bien. Si tienes problemas en producción, el problema puede ser:</p>';
+                html += '<ul>';
+                html += '<li>Scripts de terceros están siendo bloqueados (GTM, GA, etc.)</li>';
+                html += '<li>Los scripts se cargan desde dominios en la lista de bloqueo de Safari</li>';
+                html += '<li>Configuración específica de ATFP en "All Browsing" elimina ciertos parámetros</li>';
+                html += '</ul>';
+            } else if (allMethodsWork && !paramsDetected) {
+                html += '<p>⚠️ <strong>MÉTODOS OK PERO SIN PARÁMETROS</strong></p>';
+                html += '<p>Los métodos funcionan pero no hay parámetros en la URL. Verifica:</p>';
+                html += '<ul>';
+                html += '<li>¿Agregaste parámetros a la URL? Ejemplo: <code>?utm_source=test&gclid=123</code></li>';
+                html += '<li>Safari puede estar eliminando los parámetros antes de la carga</li>';
+                html += '<li>Revisa la configuración ATFP en Settings > Safari > Advanced</li>';
+                html += '</ul>';
+            } else {
+                html += '<p>❌ <strong>ALGUNOS MÉTODOS FALLARON</strong></p>';
+                html += '<p>Hay un problema con la captura de parámetros. Revisa el console log arriba.</p>';
+            }
+            
+            html += '</div>';
+
+            container.innerHTML = html;
+        }
+
+        // Ejecutar cuando la página cargue
+        window.addEventListener('load', () => {
+            runAllTests();
+        });
+    </script>
+</body>
+</html>
